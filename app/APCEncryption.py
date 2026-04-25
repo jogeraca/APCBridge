@@ -4,7 +4,7 @@ import math
 import random
 from Crypto.Cipher import AES
 
-class AylaEncryption:
+class APCEncryption:
     def __init__(self, SRnd1, SRnd2, NTime1, NTime2, LanipKey):
         self.SRnd1 = SRnd1
         self.SRnd2 = SRnd2

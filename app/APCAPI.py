@@ -1,5 +1,5 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from AylaEncryption import AylaEncryption
+from APCEncryption import APCEncryption
 from base64 import b64encode, b64decode
 from typing import Callable
 import logging
@@ -10,7 +10,7 @@ import requests
 
 api = None
 
-class AylaAPIHttpServer(BaseHTTPRequestHandler):
+class APCAPIHttpServer(BaseHTTPRequestHandler):
     def _set_response(self):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
@@ -30,7 +30,7 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
             dataPendJsonStr = json.dumps(device.data_pending).replace(" ", "")
             data = b'{"seq_no":' + str(device.seq_no).encode('utf-8') + b',"data":' + dataPendJsonStr.encode('utf-8') + b'}'
             device.seq_no += 1
-            
+
             (enc, sign) = device.crypt_config.encryptAndSign(data)
 
             resp = f'{{"enc":"{b64encode(enc).decode()}","sign":"{b64encode(sign).decode()}"}}'
@@ -57,12 +57,12 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
                 logging.error("Device with key_id " + body_json["key_exchange"]["key_id"] + " not found")
                 self.send_response(500)
                 self.end_headers()
-                return    
+                return
 
-            config = AylaEncryption(
-                body_json["key_exchange"]["random_1"], 
-                AylaEncryption.random_token(16), 
-                body_json["key_exchange"]["time_1"], 
+            config = APCEncryption(
+                body_json["key_exchange"]["random_1"],
+                APCEncryption.random_token(16),
+                body_json["key_exchange"]["time_1"],
                 int(time.time() * 1000000),
                 device.Lanip["lanip"]["lanip_key"]
                 )
@@ -79,8 +79,8 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
 
         elif(self.path.startswith("/local_lan/property/datapoint.json")):
             host_ip = self.client_address[0]
-            content_length = int(self.headers['Content-Length']) 
-            post_data = self.rfile.read(content_length) 
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
             body_json = json.loads(post_data.decode('utf-8'))
 
             device = api.get_device_by_ip(host_ip)
@@ -98,10 +98,10 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
             self._set_response()
             self.wfile.write(post_data)
             logging.info(f"POST request\nHost: {host_ip}\nPath: {self.path}\nBody: {post_data.decode('utf-8')}\nDecrypted Body: {dec.decode('utf-8')}\n")
-            
+
             if api.on_device_update:
                 api.on_device_update(device, json.loads(dec.decode('utf-8')))
-        
+
         # temporary endpoint to set setting values on the device
         # elif(self.path == "/set_device_property"):
         #     content_length = int(self.headers['Content-Length'])
@@ -132,7 +132,7 @@ class DeviceProperty:
 
     def set_value(self, value):
         self.property["value"] = value
-    
+
     def toJSON(self):
         return {"property": {"base_type":self.property["base_type"],"value":self.property["value"],"metadata":None,"name":self.property["name"]}}
 
@@ -145,7 +145,7 @@ class Device:
         self.lan_enabled = lan_enabled
         self.Lanip = Lanip
 
-        self.crypt_config: AylaEncryption = None
+        self.crypt_config: APCEncryption = None
         self.seq_no = 1
         self.data_pending = {}
 
@@ -184,7 +184,7 @@ class Device:
         self.data_pending["properties"].append(prop.toJSON())
         self.ping(notify=1)
 
-class AylaAPI:
+class APCAPI:
     server: HTTPServer
     devices: list[Device]
     on_device_update: Callable = None
@@ -202,11 +202,11 @@ class AylaAPI:
 
         for device in devices_list:
             self.devices.append(Device(**device))
-        
+
         api = self
 
         threading.Thread(target=self.start).start()
-    
+
     def get_device_by_sn(self, dsn) -> Device:
         for device in self.devices:
             if(device.dsn == dsn):
@@ -218,7 +218,7 @@ class AylaAPI:
             if(device.lan_ip == ip):
                 return device
         return None
-    
+
     def get_device_by_key_id(self, key_id) -> Device:
         for device in self.devices:
             if(device.Lanip["lanip"]["lanip_key_id"] == key_id):
@@ -227,9 +227,9 @@ class AylaAPI:
 
     def start(self):
         try:
-            self.server = HTTPServer((self.ip, self.port), AylaAPIHttpServer)
+            self.server = HTTPServer((self.ip, self.port), APCAPIHttpServer)
         except:
-            self.server = HTTPServer(('0.0.0.0', self.port), AylaAPIHttpServer)
+            self.server = HTTPServer(('0.0.0.0', self.port), APCAPIHttpServer)
         logging.info(f"Starting server on {self.server.server_address}")
         self.server.serve_forever()
 
