@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from AylaEncryption import AylaEncryption
 from base64 import b64encode, b64decode
+from typing import Callable
 import logging
 import json
 import time
@@ -74,12 +75,12 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
             self.wfile.write(resp.encode('utf-8'))
 
             logging.info(f"POST request\nHost: {device.lan_ip}\nPath: {self.path}\nBody: {post_data.decode('utf-8')}\nResponse: {resp}\n")
-            logging.info(f"Encryption Paramters\nAppSignKey: {config.app_sign_key().hex()}\nAppCryptoKey: {config.app_crypto_key().hex()}\nAppIvSeed: {config.app_iv_seed().hex()}\nDevSignKey: {config.dev_sign_key().hex()}\n")
+            logging.debug(f"Encryption Paramters\nAppSignKey: {config.app_sign_key().hex()}\nAppCryptoKey: {config.app_crypto_key().hex()}\nAppIvSeed: {config.app_iv_seed().hex()}\nDevSignKey: {config.dev_sign_key().hex()}\n")
 
         elif(self.path.startswith("/local_lan/property/datapoint.json")):
             host_ip = self.client_address[0]
-            content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
-            post_data = self.rfile.read(content_length) # <--- Gets the data itself
+            content_length = int(self.headers['Content-Length']) 
+            post_data = self.rfile.read(content_length) 
             body_json = json.loads(post_data.decode('utf-8'))
 
             device = api.get_device_by_ip(host_ip)
@@ -97,6 +98,9 @@ class AylaAPIHttpServer(BaseHTTPRequestHandler):
             self._set_response()
             self.wfile.write(post_data)
             logging.info(f"POST request\nHost: {host_ip}\nPath: {self.path}\nBody: {post_data.decode('utf-8')}\nDecrypted Body: {dec.decode('utf-8')}\n")
+            
+            if api.on_device_update:
+                api.on_device_update(device, json.loads(dec.decode('utf-8')))
         
         # temporary endpoint to set setting values on the device
         # elif(self.path == "/set_device_property"):
@@ -151,8 +155,9 @@ class Device:
 
     def ping(self, notify=0):
         try:
-            logging.info("Sending notify to {}\n".format(api.devices[0].lan_ip))
+            logging.info("Sending {} to {}\n".format("notify" if notify == 1 else "ping", api.devices[0].lan_ip))
             r = requests.post('http://' + api.devices[0].lan_ip + '/local_reg.json', json = {"local_reg":{"uri":"/local_lan","notify":notify,"ip":api.ip,"port":api.port}})
+            logging.info(f"{r.request.body}")
             if r.status_code != 202:
                 logging.info("Request failed with status code {}".format(r.status_code))
         except Exception as e:
@@ -182,6 +187,7 @@ class Device:
 class AylaAPI:
     server: HTTPServer
     devices: list[Device]
+    on_device_update: Callable = None
 
     def __init__(self, ip, port):
         global api
@@ -191,8 +197,8 @@ class AylaAPI:
         self.server = None
         self.devices = []
 
-        with open("./devices.json", "r") as file:
-            devices_list = json.loads(file.read())
+        with open("./config.json", "r") as file:
+            devices_list = json.loads(file.read())["devices"]
 
         for device in devices_list:
             self.devices.append(Device(**device))
@@ -201,6 +207,12 @@ class AylaAPI:
 
         threading.Thread(target=self.start).start()
     
+    def get_device_by_sn(self, dsn) -> Device:
+        for device in self.devices:
+            if(device.dsn == dsn):
+                return device
+        return None
+
     def get_device_by_ip(self, ip) -> Device:
         for device in self.devices:
             if(device.lan_ip == ip):
@@ -214,8 +226,11 @@ class AylaAPI:
         return None
 
     def start(self):
-        self.server = HTTPServer((self.ip, self.port), AylaAPIHttpServer)
-        logging.info(f"Starting server on {self.ip}:{self.port}")
+        try:
+            self.server = HTTPServer((self.ip, self.port), AylaAPIHttpServer)
+        except:
+            self.server = HTTPServer(('0.0.0.0', self.port), AylaAPIHttpServer)
+        logging.info(f"Starting server on {self.server.server_address}")
         self.server.serve_forever()
 
     def stop(self):
