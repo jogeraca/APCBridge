@@ -1,0 +1,32 @@
+name: APC Bridge
+version: "1.0.0"
+slug: apcbridge
+description: Local control of APC SurgeArrest smart surge protectors bridged to MQTT for Home Assistant.
+url: "https://github.com/jogeraca/APCBridge"
+arch:
+  - amd64
+  - aarch64
+init: false
+boot: auto
+startup: services
+host_network: true
+services:
+  - mqtt:need
+options:
+  apc_email: ""
+  apc_password: ""
+  bind_ip: ""
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_user: ""
+  mqtt_pass: ""
+  log_level: info
+schema:
+  apc_email: "str?"
+  apc_password: "password?"
+  bind_ip: "str?"
+  mqtt_host: "str?"
+  mqtt_port: "port?"
+  mqtt_user: "str?"
+  mqtt_pass: "password?"
+  log_level: "list(trace|debug|info|notice|warning|error|fatal)"

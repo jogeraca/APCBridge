@@ -6,7 +6,24 @@ Currently, it is required to use the app (you can find the APC Home apk online s
 
 This has been tested in a limited capacity with only an APC (Schneider Electric) Smart Surge Protector, as that is the only Ayla device that I have, although it may work with other devices that use the same platform.
 
-## Setup
+## Install as a Home Assistant OS add-on (recommended)
+
+1. In Home Assistant, go to **Settings → Add-ons → Add-on Store**.
+2. Three-dot menu → **Repositories** → add `https://github.com/jogeraca/APCBridge`.
+3. Install **APC Bridge**.
+4. In the add-on **Configuration** tab, set `apc_email` and `apc_password`
+   (your **APC Home** account credentials). MQTT is auto-discovered from the
+   Mosquitto broker add-on if it's installed.
+5. Start the add-on. On first run it logs in with your APC Home account,
+   fetches your device keys to `/data/config.json`, then starts the local
+   bridge. Outlets appear automatically in HA via MQTT discovery.
+
+After the first successful start you can clear the APC Home credentials in the
+add-on config — the device keys are cached in the add-on's persistent `/data`.
+
+See [`apcbridge/DOCS.md`](apcbridge/DOCS.md) for full add-on documentation.
+
+## Setup (plain Docker / docker compose)
 
 1. Copy the example environment file and fill in your values:
 
@@ -22,10 +39,10 @@ This has been tested in a limited capacity with only an APC (Schneider Electric)
    docker compose build
    ```
 
-3. Retrieve the device's local key by logging into the Ayla cloud. Replace the email and password with your APC Home account credentials:
+3. Retrieve the device's local key by logging in with your APC Home account credentials:
 
    ```bash
-   docker compose run --rm apc-bridge python3 /app/login.py "you@example.com" "your_password"
+   docker compose run --rm --entrypoint python3 apc-bridge /app/login.py "you@example.com" "your_password"
    ```
 
    This writes `data/config.json` containing the auth token and device list.
