@@ -1,0 +1,16 @@
+services:
+  apc-bridge:
+    build: .
+    container_name: apc-bridge
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./data:/app/data
+    working_dir: /app/data
+    command: >
+      python3 /app/main.py
+      --bind ${BIND_IP}
+      --mqtt-ip ${MQTT_IP}
+      --mqtt-port ${MQTT_PORT:-1883}
+      --mqtt-user ${MQTT_USER}
+      --mqtt-pass ${MQTT_PASS}
