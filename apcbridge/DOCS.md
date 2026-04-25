@@ -3,9 +3,45 @@
 Local control of APC SurgeArrest smart surge protectors, bridged to MQTT for
 Home Assistant auto-discovery.
 
+## Prerequisites — MQTT broker
+
+APC Bridge **does not** install or include an MQTT broker. It declares
+`services: mqtt:need` in its config, which means the Supervisor will refuse
+to start it until an MQTT broker is available on your Home Assistant
+instance. Before installing APC Bridge you must have:
+
+1. **An MQTT broker running.** The recommended option is the official
+   **Mosquitto broker** add-on.
+2. **The MQTT integration configured** in Home Assistant so other add-ons
+   (including this one) can auto-discover the broker.
+
+### Install and configure Mosquitto broker
+
+1. In Home Assistant, go to **Settings → Add-ons → Add-on Store**.
+2. Search for **Mosquitto broker** (it lives under "Official add-ons").
+3. Click **Install**, wait for it to finish, then click **Start**.
+4. Enable **Start on boot** and **Watchdog** on the Info tab.
+5. Go to **Settings → Devices & Services**. Home Assistant should show a
+   discovered **MQTT** integration — click **Configure** and accept the
+   defaults to finish the setup. If it isn't auto-discovered, click
+   **Add Integration → MQTT** and use:
+   - Broker: `core-mosquitto`
+   - Port: `1883`
+   - Username / password: an HA user (or create one in
+     **Settings → People** dedicated to MQTT).
+
+Once Mosquitto is running and the MQTT integration is configured, APC
+Bridge will pick up the broker credentials automatically through the
+Supervisor — you can leave `mqtt_host`, `mqtt_user` and `mqtt_pass`
+**empty** in the APC Bridge configuration.
+
+> Only set `mqtt_host` / `mqtt_user` / `mqtt_pass` manually if you are
+> using an external MQTT broker that is **not** managed by the Supervisor.
+
 ## Installation
 
-1. Install the **Mosquitto broker** add-on (or any MQTT broker integrated with HA).
+1. Make sure the prerequisites above are met (Mosquitto running + MQTT
+   integration configured).
 2. In Home Assistant, go to **Settings → Add-ons → Add-on Store**.
 3. Click the three-dot menu → **Repositories** and add:
    `https://github.com/jogeraca/APCBridge`
